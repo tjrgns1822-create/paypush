@@ -87,6 +87,23 @@ class MainActivity : Activity() {
             refresh()
             toast("새 토큰을 Apps Script에도 바꿔 넣어야 합니다")
         }
+        val tokenInput = EditText(this).apply {
+            hint = "다시 설치했다면 예전 토큰을 여기 붙여 넣기"
+            isSingleLine = true
+            typeface = Typeface.MONOSPACE
+        }
+        root.addView(tokenInput)
+        button("붙여 넣은 토큰으로 바꾸기") {
+            val t = tokenInput.text.toString().trim()
+            if (t.matches(Regex("""[0-9A-Za-z]{16,128}"""))) {
+                prefs.setToken(t)
+                tokenInput.setText("")
+                refresh()
+                toast("토큰을 바꿨습니다. 연결 테스트를 눌러 확인하세요")
+            } else {
+                toast("토큰은 영문·숫자 16자 이상입니다")
+            }
+        }
         button("연결 테스트") { background({ Uploader.test(this) }) { toast(it) } }
 
         header("3. 전송 상태")

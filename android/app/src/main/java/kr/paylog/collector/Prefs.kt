@@ -15,6 +15,9 @@ class Prefs(context: Context) {
     val token: String
         get() = sp.getString("token", null) ?: newToken()
 
+    /** 앱을 다시 깔았을 때 Apps Script에 넣어 둔 예전 토큰을 그대로 쓰기 위해 */
+    fun setToken(t: String) = sp.edit().putString("token", t).apply()
+
     fun newToken(): String {
         val bytes = ByteArray(24).also { SecureRandom().nextBytes(it) }
         val t = bytes.joinToString("") { "%02x".format(it) }
