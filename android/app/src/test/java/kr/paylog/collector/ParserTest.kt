@@ -87,6 +87,11 @@ class ParserTest {
         assertNull(Parser.parse("(광고) 신한카드", "최대 50,000원 캐시백! 지금 결제하세요"))
     }
 
+    @Test fun 토스_만보기는_버림() {
+        assertNull(Parser.parse("만보기", "오늘 5,000걸음 걸었어요! 10원 받았어요"))
+        assertNull(Parser.parse("토스", "만보기 포인트 40원을 받았어요"))
+    }
+
     @Test fun 누적금액은_결제금액이_아님() {
         val p = Parser.parse("", "롯데카드 승인 누적 300,000원 7,700원 10/28 12:00 맘스터치")!!
         assertEquals(7700.0, p.amount)

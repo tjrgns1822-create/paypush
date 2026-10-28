@@ -24,6 +24,9 @@ object Parser {
     // 광고성 알림은 법적으로 "(광고)" 표기가 붙는다
     private val AD = Regex("""[(\[]\s*광고\s*[)\]]""")
 
+    // 결제가 아닌 앱 활동 알림 (토스 만보기, 출석체크, 퀴즈 등). 포인트를 "받았어요"라고 해도 거래가 아니다.
+    private val NOT_PAYMENT = Regex("""만보기|걸음|걸었|출석\s*체크|행운\s*퀴즈|퀴즈|룰렛|뽑기|이벤트\s*참여|미션|챌린지""")
+
     // 앞에 있는 규칙이 우선한다. "승인취소"는 취소, "승인거절"은 거절.
     private val KIND_RULES = listOf(
         "거절" to Regex("""거절|승인\s*불가|한도\s*초과"""),
@@ -75,7 +78,7 @@ object Parser {
      */
     fun parse(title: String, text: String, strict: Boolean = false): Parsed? {
         val full = listOf(title, text).filter { it.isNotBlank() }.joinToString("\n")
-        if (AD.containsMatchIn(full)) return null
+        if (AD.containsMatchIn(full) || NOT_PAYMENT.containsMatchIn(full)) return null
 
         val kind = KIND_RULES.firstOrNull { it.second.containsMatchIn(full) }?.first
         val (amount, currency) = amountOf(full)
