@@ -3,6 +3,8 @@
 
     <!-- 본인 Apps Script 웹앱으로 보내는 데만 쓴다 -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 안드로이드 14부터 '인터넷 연결되면 실행' 작업을 예약하려면 꼭 필요 (없으면 앱이 꺼짐) -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- 재부팅 뒤에도 6시간마다 도는 재전송 작업을 유지 -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
