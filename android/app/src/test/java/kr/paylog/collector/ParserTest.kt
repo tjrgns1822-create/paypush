@@ -93,13 +93,49 @@ class ParserTest {
     }
 
     @Test fun 하나카드_할인예정_안내는_버림() {
-        assertNull(Parser.parse("하나카드 혜택금액 안내", "- '간편결제' 혜택으로 561원이 할인되어 결제될 예정이에요."))
+        assertNull(Parser.parse("하나카드 혜택금액 안내", "- '간편결제' 혜택으로 300원이 할인되어 결제될 예정이에요."))
     }
 
     @Test fun 할인이_적힌_실제_승인은_남김() {
-        val p = Parser.parse("", "하나카드(1234)승인 홍*동 11,439원 일시불 10/29 18:10 쿠팡 (할인 561원)")!!
+        val p = Parser.parse("", "하나카드(1234)승인 홍*동 9,700원 일시불 10/15 18:10 쿠팡 (할인 300원)")!!
         assertTrue(p.matched)
-        assertEquals(11439.0, p.amount)
+        assertEquals(9700.0, p.amount)
+    }
+
+    // 아래는 실제 알림 형식을 그대로 본뜬 예시 (개인정보가 없도록 금액·가맹점·지역은 바꿈)
+    @Test fun 형식_하나카드_할인예정() {
+        assertNull(Parser.parse("[OO카드 FREE+] 결제 금액 할인(예정)", "- '간편결제' 혜택으로 300원이 할인되어 결제될 예정이에요."))
+    }
+
+    @Test fun 형식_하나카드_결제() {
+        val p = Parser.parse("(결제) 12,300원", "OO멤버십 / 신용(일시불,1*2*) / 10.15 09:05 / 누적이용금액 300,000원")!!
+        assertEquals("승인", p.kind)
+        assertEquals(12300.0, p.amount)
+        assertEquals("OO멤버십", p.merchant)
+        assertEquals("신용(1*2*)", p.card)
+        assertEquals("10/15 09:05", p.txTime)
+    }
+
+    @Test fun 형식_하나카드_매출취소() {
+        val p = Parser.parse("매출취소 안내", "[매출취소안내] 15일 / -20,000 원 / 쿠팡(쿠페이)_KICC")!!
+        assertEquals("취소", p.kind)
+        assertEquals(20000.0, p.amount)
+        assertTrue(p.merchant.startsWith("쿠팡"))
+    }
+
+    @Test fun 형식_chak_결제() {
+        val p = Parser.parse("OO사랑상품권 9,000원 결제완료", "결제가 완료되었습니다.\n동네 분식 9,000원 | 잔액 50,000원\n(상품권 [8,000]원 + 캐시백 [1,000]원)")!!
+        assertTrue(p.matched)
+        assertEquals(9000.0, p.amount)
+        assertEquals("동네 분식", p.merchant)
+        assertEquals("잔액 50,000", p.balance)
+    }
+
+    @Test fun 형식_토스_카드결제() {
+        val p = Parser.parse("10,000원 결제", "KB국민카드 | 쿠팡(쿠페이)(일시불)")!!
+        assertEquals(10000.0, p.amount)
+        assertEquals("KB국민카드", p.card)
+        assertTrue(p.merchant.startsWith("쿠팡"))
     }
 
     @Test fun 누적금액은_결제금액이_아님() {

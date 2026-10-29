@@ -59,19 +59,24 @@ object Parser {
     private val INSTALLMENT = Regex("""일시불|\d{1,2}\s*개월""")
 
     private val DATE_SLASH = Regex("""(?<![\d.,])(\d{1,2})/(\d{1,2})(?:\s*(\d{1,2}:\d{2}))?""")
+    // 하나카드 "10.15 09:05" 형식. 소수(12.99)와 헷갈리지 않게 시각이 붙은 경우만 본다.
+    private val DATE_DOT = Regex("""(?<![\d.,])(\d{1,2})\.(\d{1,2})\s+(\d{1,2}:\d{2})""")
     private val DATE_KOREAN = Regex("""(\d{1,2})월\s*(\d{1,2})일(?:\s*(\d{1,2}:\d{2}))?""")
     private val TIME_ONLY = Regex("""(?<![\d:])(\d{1,2}:\d{2})(?![\d:])""")
 
     // 문자·카카오톡처럼 아무 메시지나 오는 앱은 카드사·은행 이름이 있어야 결제 알림으로 본다
     private val BRAND = Regex("""카드|체크|은행|뱅크|Bank|BANK|페이|Pay|농협|신협|새마을|우체국|저축|증권|상품권|\[(?:KB|NH|IBK|SC|BNK|DGB|MG)\]""")
 
+    private val VOUCHER_LINE = Regex("""^(.+?)\s+$NUM\s*원\s*\|\s*잔액""", RegexOption.MULTILINE)
+    private val CARD_KIND = Regex("""신용|체크|선불""")
     private val STOP = Regex("""누적|잔액|잔고|이용\s*가능|\n""")
     private val NOISE = listOf(
         Regex("""\[[^\]]{0,15}]"""),
         CARD, CARD_SHORT, ACCOUNT, FOREIGN, KRW, BANK_AMOUNT, INSTALLMENT,
         Regex("""[가-힣]\*[가-힣*]{0,3}\s*님?"""), // 마스킹된 이름 (홍*동님)
         Regex("""[\d*]*\*[\d*]+"""), // 마스킹된 번호
-        DATE_SLASH, DATE_KOREAN, TIME_ONLY,
+        DATE_SLASH, DATE_DOT, DATE_KOREAN, TIME_ONLY,
+        Regex("""\d{1,2}일"""),
         Regex("""승인|취소|결제|사용|입금|출금|이체|송금|완료|체크|해외|국내|님"""),
     )
     private val PUNCT = Regex("""[|:·,()\-→>/\s]+""")
@@ -86,7 +91,7 @@ object Parser {
 
         val kind = KIND_RULES.firstOrNull { it.second.containsMatchIn(full) }?.first
         val (amount, currency) = amountOf(full)
-        val dt = DATE_SLASH.find(full) ?: DATE_KOREAN.find(full)
+        val dt = DATE_SLASH.find(full) ?: DATE_DOT.find(full) ?: DATE_KOREAN.find(full)
         val time = dt ?: TIME_ONLY.find(full)
 
         var matched = kind != null && amount != null
@@ -126,6 +131,7 @@ object Parser {
             val last = m.groupValues[2]
             return if (last.isEmpty()) m.groupValues[1] else "${m.groupValues[1]}($last)"
         }
+        Regex("""(신용|체크)\([^)]*?([\d*]{4})\)""").find(s)?.let { return "${it.groupValues[1]}(${it.groupValues[2]})" }
         CARD_SHORT.find(s)?.let { return "${it.groupValues[1]}(${it.groupValues[2]})" }
         ACCOUNT.find(s)?.let { m ->
             val bank = Regex("""\[([^\]]{1,10})]""").find(s)?.groupValues?.get(1)
@@ -145,6 +151,14 @@ object Parser {
 
     /** 카드 문자는 보통 "날짜 시각 가맹점" 순서라서 시각 뒤를 먼저 본다. */
     private fun merchantOf(full: String, time: MatchResult?): String {
+        // chak: "가게 이름 9,000원 | 잔액 50,000원"
+        VOUCHER_LINE.find(full)?.let { m -> clean(m.groupValues[1]).let { if (it.isNotEmpty()) return it } }
+        // 하나카드: "가맹점 / 신용(일시불,1*2*) / 10.15 09:05 / 누적…"
+        full.split('\n').firstOrNull { it.contains(" / ") }?.let { line ->
+            line.split(" / ").map { clean(it.split(STOP, limit = 2)[0]) }
+                .firstOrNull { it.isNotEmpty() && !it.matches(CARD_KIND) }
+                ?.let { return it }
+        }
         if (time != null) {
             val after = full.substring(time.range.last + 1)
             val sameLine = after.split(STOP, limit = 2)[0]
