@@ -92,6 +92,16 @@ class ParserTest {
         assertNull(Parser.parse("토스", "만보기 포인트 40원을 받았어요"))
     }
 
+    @Test fun 하나카드_할인예정_안내는_버림() {
+        assertNull(Parser.parse("하나카드 혜택금액 안내", "- '간편결제' 혜택으로 561원이 할인되어 결제될 예정이에요."))
+    }
+
+    @Test fun 할인이_적힌_실제_승인은_남김() {
+        val p = Parser.parse("", "하나카드(1234)승인 홍*동 11,439원 일시불 10/29 18:10 쿠팡 (할인 561원)")!!
+        assertTrue(p.matched)
+        assertEquals(11439.0, p.amount)
+    }
+
     @Test fun 누적금액은_결제금액이_아님() {
         val p = Parser.parse("", "롯데카드 승인 누적 300,000원 7,700원 10/28 12:00 맘스터치")!!
         assertEquals(7700.0, p.amount)
